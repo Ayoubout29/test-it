@@ -7,6 +7,7 @@ import com.example.testit.model.Status;
 import com.example.testit.repository.BookRepository;
 import com.example.testit.repository.MemberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,25 +52,28 @@ public class BookService {
         bookRepository.deleteById(id);
     }
 
+    @Transactional
     public Book borrowBook(Long bookId, Long memberId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found"));
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("Member not found"));
-        if (book.getStatus() == Status.EMPRUNTE) {
+        if (book.getStatus() != Status.DISPONIBLE) {
             throw new IllegalStateException("Book can only be borrowed if status is DISPONIBLE");
         }
         // Vérifier si le membre a déjà un livre EMPRUNTE
-        List<Book> ongoingLoans = bookRepository.findByMemberAndStatus(memberId, Status.RENDU);
+        List<Book> ongoingLoans = bookRepository.findByMemberAndStatus(memberId, Status.EMPRUNTE);
         if (!ongoingLoans.isEmpty()) {
             throw new IllegalStateException("Member cannot borrow more than one book at a time");
         }
         book.setStatus(Status.EMPRUNTE);
         book.setBorrower(member);
         Book saved = bookRepository.save(book);
+        mailService.sendMail(member, "Livre emprunté", "Vous avez emprunté '" + book.getTitle() + "'.");
         return saved;
     }
 
+    @Transactional
     public Book returnBook(Long bookId, Long memberId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found"));
@@ -77,12 +81,15 @@ public class BookService {
             throw new IllegalStateException("Book can only be returned if status is EMPRUNTE");
         }
         Member member = book.getBorrower();
+        if (!member.getId().equals(memberId)) {
+            throw new IllegalStateException("Only the borrower can return this book");
+        }
         book.setStatus(Status.RENDU);
         Book saved = bookRepository.save(book);
         mailService.sendMail(member, "Livre rendu", "Merci d'avoir rendu '" + book.getTitle() + "'.");
         // Prévenir aussi le bibliothécaire référent si présent
         if (member.getReferent() != null) {
-            mailService.sendMail(member, "Livre rendu par un de vos membres",
+            mailService.sendMail(member.getReferent(), "Livre rendu par un de vos membres",
                     "'" + book.getTitle() + "' a été rendu par " + member.getUsername() + ".");
         }
         return saved;

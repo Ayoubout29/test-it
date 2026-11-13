@@ -41,7 +41,7 @@ public class BookController {
 
     @PostMapping
     public Book createBook(@Valid @RequestBody BookRequest request) {
-        return bookService.createBook(request.title, request.title);
+        return bookService.createBook(request.title, request.author);
     }
 
     @PutMapping("/{id}")
@@ -62,10 +62,10 @@ public class BookController {
 
     @PostMapping("/{id}/borrow")
     public ResponseEntity<Book> borrowBook(@PathVariable Long id) {
-        Long memberId = currentMemberService.getCurrentMemberId()
-                .orElseThrow(() -> new IllegalStateException("Member not authenticated"));
         try {
-            return ResponseEntity.ok(bookService.returnBook(id, memberId));
+            Long memberId = currentMemberService.getCurrentMemberId()
+                    .orElseThrow(() -> new IllegalStateException("Member not authenticated"));
+            return ResponseEntity.ok(bookService.borrowBook(id, memberId));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(null);
         }
@@ -73,9 +73,9 @@ public class BookController {
 
     @PostMapping("/{id}/return")
     public ResponseEntity<Book> returnBook(@PathVariable Long id) {
-        Long memberId = currentMemberService.getCurrentMemberId()
-                .orElseThrow(() -> new IllegalStateException("Member not authenticated"));
         try {
+            Long memberId = currentMemberService.getCurrentMemberId()
+                    .orElseThrow(() -> new IllegalStateException("Member not authenticated"));
             return ResponseEntity.ok(bookService.returnBook(id, memberId));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(null);

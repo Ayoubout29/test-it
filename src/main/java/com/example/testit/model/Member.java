@@ -1,10 +1,12 @@
 package com.example.testit.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.util.List;
 
 @Entity
+@Table(name = "members")
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -12,10 +14,12 @@ public class Member {
 
     private String username;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "borrower")
     private List<Book> books;
 
     /** Bibliothécaire référent du membre, prévenu quand il rend un livre. */
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "referent_id")
     private Member referent;
